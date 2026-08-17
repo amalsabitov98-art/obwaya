@@ -275,6 +275,10 @@ def main():
 
     ok &= selftest_backup.main(check)
 
+    print("\n── очиститель Mail.ru ──────────────────────────────────────")
+    rc = subprocess.run(["sh", str(ROOT / "tools" / "selftest_cleanup.sh")]).returncode
+    ok &= check("тесты очистителя", rc == 0)
+
     print("\n" + ("ВСЁ ЗЕЛЁНОЕ" if ok else "ЕСТЬ ПАДЕНИЯ"))
     return 0 if ok else 1
 
