@@ -7,8 +7,9 @@
     python3 tools/build_notebook.py
 """
 
-import json
 from pathlib import Path
+
+from nbbuild import code, md, write
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "mailru_to_drive.ipynb"
@@ -608,45 +609,19 @@ MD_TROUBLE = r'''---
 # Сборка
 # ─────────────────────────────────────────────────────────────────────────────
 
-def md(text):
-    return {"cell_type": "markdown", "metadata": {}, "source": text.splitlines(True)}
-
-
-def code(text):
-    return {
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {"cellView": "form"},
-        "outputs": [],
-        "source": text.splitlines(True),
-    }
-
-
 def main():
-    notebook = {
-        "nbformat": 4,
-        "nbformat_minor": 0,
-        "metadata": {
-            "colab": {"provenance": [], "toc_visible": True},
-            "kernelspec": {"name": "python3", "display_name": "Python 3"},
-            "language_info": {"name": "python"},
-        },
-        "cells": [
-            md(MD_INTRO),
-            code(CODE_CONFIG),
-            code(CODE_INSTALL),
-            code(CODE_MOUNT),
-            code(CODE_CORE),
-            code(CODE_LIST),
-            code(CODE_DOWNLOAD),
-            code(CODE_EXTRACT),
-            code(CODE_TO_DRIVE),
-            md(MD_TROUBLE),
-        ],
-    }
-
-    OUT.write_text(json.dumps(notebook, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"Записал {OUT} ({OUT.stat().st_size} байт, {len(notebook['cells'])} ячеек)")
+    write(OUT, [
+        md(MD_INTRO),
+        code(CODE_CONFIG),
+        code(CODE_INSTALL),
+        code(CODE_MOUNT),
+        code(CODE_CORE),
+        code(CODE_LIST),
+        code(CODE_DOWNLOAD),
+        code(CODE_EXTRACT),
+        code(CODE_TO_DRIVE),
+        md(MD_TROUBLE),
+    ])
 
 
 if __name__ == "__main__":

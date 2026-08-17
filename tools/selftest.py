@@ -270,6 +270,11 @@ def main():
             (drive / "Модуль 1/урок 01 - введение.mp4").is_file(),
         )
 
+    print("\n── блокнот переноса облака ─────────────────────────────────")
+    import selftest_backup
+
+    ok &= selftest_backup.main(check)
+
     print("\n" + ("ВСЁ ЗЕЛЁНОЕ" if ok else "ЕСТЬ ПАДЕНИЯ"))
     return 0 if ok else 1
 
