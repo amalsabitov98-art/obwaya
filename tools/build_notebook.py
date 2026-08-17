@@ -544,7 +544,8 @@ need("OUT", "RAW", "DEST", "FOLDER_NAME", "copy_tree")
 target = DEST / FOLDER_NAME
 moved_files = moved_bytes = 0
 
-if OUT.exists() and any(OUT.rglob("*")):
+had_archives = OUT.exists() and any(OUT.rglob("*"))
+if had_archives:
     n, b = copy_tree(OUT, target)
     moved_files += n
     moved_bytes += b
@@ -554,7 +555,9 @@ leftovers = [
     p for p in RAW.rglob("*") if p.is_file() and not ARCHIVE_RE.search(p.name)
 ]
 if leftovers or (KEEP_ARCHIVES and any(RAW.rglob("*"))):
-    n, b = copy_tree(RAW, target / "_исходники")
+    # Если архивов не было вовсе (просто копировали папку по ссылке) — кладём
+    # файлы прямо в папку курса, а не в подпапку рядом с распакованным.
+    n, b = copy_tree(RAW, target / "_исходники" if had_archives else target)
     moved_files += n
     moved_bytes += b
 
