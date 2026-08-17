@@ -30,10 +30,12 @@ Google, а результат сразу уезжает в Drive.
 
 ### Как пользоваться
 
-1. **Настройки** — вставь ссылку и пароль от архива.
-2. Дальше выполняй ячейки сверху вниз, по одной, дожидаясь каждой.
-3. Не закрывай вкладку: Colab отключает простаивающие сессии примерно
-   через 90 минут.
+Выполняй **все** ячейки сверху вниз, по одной, дожидаясь каждой — начиная
+с самой первой, «Шаг 0. Настройки». Она выглядит как панель с полями, но
+это тоже код, и его надо запустить: без него следующие шаги не поедут.
+
+Не закрывай вкладку: Colab отключает простаивающие сессии примерно через
+90 минут.
 
 Если связь оборвётся — просто запусти ячейку загрузки заново, она
 продолжит с того места, где встала, а не с нуля.
@@ -46,7 +48,7 @@ Google, а результат сразу уезжает в Drive.
 '''
 
 
-CODE_CONFIG = r'''#@title ⚙️ Настройки { display-mode: "form" }
+CODE_CONFIG = r'''#@title ⚙️ Шаг 0. Настройки — запусти эту ячейку первой { display-mode: "form" }
 
 #@markdown **Ссылка на публичную папку Mail.ru**
 MAILRU_URL = "https://cloud.mail.ru/public/ea77/faVuPoSLZ"  #@param {type:"string"}
@@ -122,6 +124,13 @@ CODE_MOUNT = r'''#@title 🔗 Шаг 2. Подключение Google Drive
 import os
 from pathlib import Path
 
+if "DRIVE_FOLDER" not in globals():
+    raise RuntimeError(
+        "Не выполнена самая первая ячейка «⚙️ Шаг 0. Настройки».\n"
+        "Прокрути наверх, вставь ссылку и пароль от архива, запусти её "
+        "кнопкой ▶ — и возвращайся сюда."
+    )
+
 DRIVE_ROOT = None
 try:
     from google.colab import drive as _gdrive
@@ -172,6 +181,22 @@ def human(n):
         if n < 1024 or unit == "ТБ":
             return f"{n:.1f} {unit}" if unit != "Б" else f"{n:.0f} Б"
         n /= 1024
+
+
+def need(*names):
+    """Проверяет, что предыдущие шаги выполнены, и объясняет, если нет."""
+    missing = [n for n in names if n not in globals()]
+    if missing:
+        raise RuntimeError(
+            "Пропущен предыдущий шаг — не хватает: " + ", ".join(missing) + ".\n"
+            "Выполни ячейки сверху вниз по порядку, начиная с «⚙️ Шаг 0. Настройки»."
+        )
+
+
+def safe_name(s):
+    """Имя, пригодное для папки: без слэшей и прочего мусора по краям."""
+    s = re.sub(r"[/\\\n\r\t]+", " ", str(s)).strip(" .")
+    return s[:120] or "курс"
 
 
 def weblink_id(s):
@@ -408,10 +433,19 @@ print("✅ Код загружен.")
 CODE_LIST = r'''#@title 📋 Шаг 4. Что лежит по ссылке
 #@markdown Спрашивает у Mail.ru список файлов и показывает, что будет скачано.
 
+need("MAILRU_URL", "list_public", "DEST")
+
 WL = weblink_id(MAILRU_URL)
 print(f"Публичная ссылка: {WL}\nСпрашиваю список файлов...\n")
 
+# Имя папки у Mail.ru обычно человеческое — под ним и сохраним в Drive,
+# иначе получится папка с названием вида «faVuPoSLZ».
+FOLDER_NAME = safe_name(api_get("folder", weblink=WL, limit=1).get("name") or WL.split("/")[-1])
+print(f"Название: {FOLDER_NAME}\n")
+
 ALL_FILES = list_public(WL)
+if not ALL_FILES:
+    raise RuntimeError("По ссылке нет ни одного файла — проверь, та ли это ссылка.")
 
 if WHAT_TO_GRAB == "только архивы":
     PICKED = [f for f in ALL_FILES if ARCHIVE_RE.search(f["name"])]
@@ -443,6 +477,8 @@ CODE_DOWNLOAD = r'''#@title ⬇️ Шаг 5. Скачивание
 #@markdown Самая долгая часть. Если оборвётся — просто запусти ячейку заново,
 #@markdown она продолжит с места обрыва.
 
+need("PICKED", "WL", "download")
+
 SHARD = get_shard()
 RAW = Path(WORK_DIR) / "raw"
 RAW.mkdir(parents=True, exist_ok=True)
@@ -468,6 +504,8 @@ print(f"\n✅ Скачано {human(got)} за {elapsed/60:.0f} мин ({human(s
 CODE_EXTRACT = r'''#@title 📂 Шаг 6. Распаковка
 #@markdown Использует пароль из настроек. Архивы удаляются сразу после
 #@markdown успешной распаковки, чтобы освободить место.
+
+need("RAW", "extract", "ARCHIVE_PASSWORD")
 
 OUT = Path(WORK_DIR) / "out"
 archives = sorted(p for p in RAW.rglob("*") if p.is_file() and ARCHIVE_RE.search(p.name))
@@ -500,10 +538,9 @@ else:
 CODE_TO_DRIVE = r'''#@title 🚀 Шаг 7. Перенос в Google Drive
 #@markdown Складывает распакованное (и всё остальное, что качали) в Drive.
 
-name = Path(MAILRU_URL.rstrip("/")).name
-title = (ALL_FILES[0]["path"].split("/")[0] if "/" in ALL_FILES[0]["path"] else "") or name
-target = DEST / title
+need("OUT", "RAW", "DEST", "FOLDER_NAME", "copy_tree")
 
+target = DEST / FOLDER_NAME
 moved_files = moved_bytes = 0
 
 if OUT.exists() and any(OUT.rglob("*")):

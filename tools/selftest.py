@@ -191,6 +191,30 @@ def main():
     human = ns["human"]
     ok &= check("human(27.6 ГБ)", human(29648622387).startswith("27.6"), human(29648622387))
 
+    safe_name = ns["safe_name"]
+    ok &= check(
+        "имя папки чистится от слэшей",
+        "/" not in safe_name("[SuperSliv.biz] Курс / часть 1")
+        and safe_name("  курс.  ") == "курс",
+        safe_name("[SuperSliv.biz] Курс / часть 1"),
+    )
+
+    nd = ns["need"]
+    try:
+        nd("weblink_id", "human")
+        ok &= check("need(): не мешает, когда всё на месте", True)
+    except RuntimeError as exc:
+        ok &= check("need(): не мешает, когда всё на месте", False, str(exc))
+    try:
+        nd("MAILRU_URL")
+        ok &= check("need(): ловит пропущенный шаг", False, "не заметил пропуска")
+    except RuntimeError as exc:
+        ok &= check(
+            "need(): ловит пропущенный шаг",
+            "Шаг 0" in str(exc) and "MAILRU_URL" in str(exc),
+            str(exc).splitlines()[0][:60],
+        )
+
     archive_re = ns["ARCHIVE_RE"]
     ok &= check(
         "распознаёт архивы, не трогает видео",
